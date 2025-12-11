@@ -1,0 +1,40 @@
+%% Lichtsensor-Versuch - Sensor timergesteuert auslesen
+function lightReadWithTimer(brickObj, numberOfSeconds)
+
+% ... Initialisierung der Vektoren, Starten der Stoppuhr hierher kopieren ...
+% ...
+vals = NaN(1);
+timestamps = NaN(1);
+% Timer-Objekt anlegen und starten
+% ...
+t = timer
+set(t, 'TimerFcn', @readLightTimerFcn);
+set(t, 'ExecutionMode', 'fixedSpacing');
+
+% Daten aus Timer-Objekt auslesen.
+% ...
+
+% Plotten der Ergebnisse hierher kopieren
+% ...
+
+
+%--------------------------------------------------------------------------
+
+%%
+function readLightTimerFcn (timerObj, event)
+
+% UserData aus Timer-Objekt holen
+% ...
+    vals = get(timerObj, 'UserData');
+    vals(1, end+1) = brickObj.sensor1.value;
+    vals(2, end) = event.Data.time;
+% Zeit und Sensorwert in Datenstruktur speichern:
+    set(timerObj, 'UserData', vals);
+% Schleifeninhalt der while-Schleife aus lightReadWithLoop hierher kopieren
+% ...
+
+% Daten zurueck in Timer-Objekt sichern
+% ...
+
+%--------------------------------------------------------------------------
+

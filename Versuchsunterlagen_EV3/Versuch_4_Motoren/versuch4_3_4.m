@@ -1,0 +1,26 @@
+prompt = {'Enter first complex number:','Enter second complex number:', 'Choose operation (mul, div, conj, sqrt):'};
+dlgtitle = 'Input';
+fieldsize = [1 45; 1 45; 1 45];
+answer = inputdlg(prompt,dlgtitle,fieldsize);
+
+complex1 = str2double(answer(1))
+complex2 = str2double(answer(2));
+operation = string(answer(3));
+
+
+result = 0;
+
+switch operation
+ 
+    case 'mul'
+        result = complex1*complex2;
+    case 'div'
+        result = complex1/complex2;
+    case 'conj'
+        result = conj(complex1);
+    case 'sqrt'
+       result = sqrt(complex1);
+    otherwise
+end
+
+compass(result);

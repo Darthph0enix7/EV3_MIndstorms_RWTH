@@ -1,0 +1,96 @@
+%% Aufgabe Motormessungen
+% Template for exercise b) and c)
+
+
+%% Open Bluetooth/USB connetion
+% ...
+b=EV3();
+b.connect("usb");
+
+%% Set variables
+% ...
+
+
+
+
+%% Create motor object
+% ...
+
+
+%% Do three measurements
+% ...
+
+
+%messen(b, 'Coast');
+
+%messen(b, 'Brake');
+
+speedtest(b, false);
+
+pause(3);
+speedtest(b, true);
+
+function messen(b, mode)
+    powerwerte = [30, 50, 70];
+    angle_values = NaN(3,1);
+    time_values = NaN(3,1);
+    is_running = NaN(3,1);
+    grenzen = [];
+    
+    b.motorA.limitValue = 1000;
+    b.motorA.brakeMode = mode;
+    
+
+    for i = 1:3
+
+        b.motorA.resetTachoCount();
+        b.motorA.power = powerwerte(i);
+        b.motorA.start();
+        tic;
+        n = 1;
+        u = 0;
+        while toc < 3
+            if u == 5    
+                angle_values(i, n) = b.motorA.tachoCount;
+                is_running(i, n) = b.motorA.isRunning;
+                time_values(i, n) = toc;
+                u = 0;
+                n = n + 1;
+            else
+                u = u + 1;
+            end
+        end
+        grenzen(i) = n - 5;
+        b.motorA.stop();
+    end
+    f = figure();
+    plot(time_values(1, 1:grenzen(1)), angle_values(1, 1:grenzen(1)), time_values(2, 1:grenzen(2)), angle_values(2, 1:grenzen(2)), time_values(3, 1:grenzen(3)), angle_values(3, 1:grenzen(3)));
+    hold all;
+    plot([0, 3],[1000, 1000]); 
+    
+    f2 = figure();
+    plot(time_values(1, 1:grenzen(1)), is_running(1, 1:grenzen(1)), time_values(2, 1:grenzen(2)), is_running(2, 1:grenzen(2)), time_values(3, 1:grenzen(3)), is_running(3, 1:grenzen(3)));
+    
+end
+
+function speedtest(b, regu)
+    b.motorA.setProperties('power', 40, 'limitValue', 0, 'SmoothStart', 0);
+    b.motorA.speedRegulation = regu;
+    b.motorA.start();
+    pause(8);
+    b.motorA.stop();
+end
+
+
+
+
+%% Close NXT
+% ...
+
+
+%% Display permant motor position differences
+% ...
+
+
+%% Plot graphs
+% ...

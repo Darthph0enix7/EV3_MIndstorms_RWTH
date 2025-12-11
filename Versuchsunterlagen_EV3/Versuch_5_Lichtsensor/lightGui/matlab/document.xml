@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef lightGui < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure          matlab.ui.Figure
+        UIAxes            matlab.ui.control.UIAxes
+        QuitButton        matlab.ui.control.Button
+        ToggleModeButton  matlab.ui.control.Button
+        StopButton        matlab.ui.control.Button
+        StartButton       matlab.ui.control.Button
+        ModeLabel         matlab.ui.control.Label
+        ModeText          matlab.ui.control.Label
+    end
+
+    properties (Access = private)
+        config          % Speichern einiger Konfigurationsdaten
+        brickObj        
+        myTimer
+    end
+    
+    methods (Access = private)
+        function readLightTimerCallback(app, timerObj, event)
+            % <-- Your Code Here -->
+        end
+        
+        function readLightTimerStartCallback(app, timerObj, event)
+            disp('Timer wurde gestartet');
+        end
+        
+        function readLightTimerStopCallback(app, timerObj, event)
+            disp('Timer wurde angehalten');
+        end
+    end
+
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app)
+            % Speichern einiger Konfigurationsdaten in den app-Properties
+            app.config.numberOfValues       = 30;
+            app.config.sensorMode           = 'ambient';
+            app.config.timerPeriod          = 0.1;
+            app.config.timerExecutionMode   = 'fixedDelay';
+            app.config.brickConnectionType  = 'usb';
+            
+            % Bluetooth initialisieren und Verbindung oeffnen
+            try
+                app.brickObj = lightConnectEV3(app.config.brickConnectionType, ...
+                    app.config.sensorMode);
+            catch errinfo
+                disp('Verbindung konnte nicht hergestellt werden');
+                disp(errinfo);
+            end
+            
+            % Daten fuer UserData Eigenschaft des Timer-Objektes vorbereiten
+            myUserData.measurementData = zeros(app.config.numberOfValues,1);
+            myUserData.brickObj = app.brickObj;
+            
+            % Timer-Objekt erzeugen, konfigurieren und in den app-Properties speichern
+            app.myTimer = timer(...
+                'Period',        app.config.timerPeriod, ...
+                'ExecutionMode', app.config.timerExecutionMode, ...
+                'UserData',      myUserData, ...
+                'StartFcn',     @app.readLightTimerStartCallback, ...
+                'StopFcn',      @app.readLightTimerStopCallback, ...
+                'TimerFcn',     @app.readLightTimerCallback);
+            
+            % Den aktuellen Mode in der GUI anzeigen
+            app.ModeText.Text = app.config.sensorMode;
+            
+            % Initiales Plotten der Daten (muss man nicht unbedingt machen)
+            plot(app.UIAxes, myUserData.measurementData);
+            app.UIAxes.YLim = [0 100];
+        end
+
+        % Close request function: UIFigure
+        function UIFigureCloseRequest(app, event)
+            % <-- Your Code Here -->
+            
+            % Hint: delete(app) closes the figure
+            delete(app);
+        end
+
+        % Button pushed function: StartButton
+        function StartButtonPushed(app, event)
+            % <-- Your Code Here -->
+        end
+
+        % Button pushed function: StopButton
+        function StopButtonPushed(app, event)
+            % <-- Your Code Here -->
+        end
+
+        % Button pushed function: ToggleModeButton
+        function ToggleModeButtonPushed(app, event)
+            % <-- Your Code Here -->
+        end
+
+        % Button pushed function: QuitButton
+        function QuitButtonPushed(app, event)
+            % <-- Your Code Here -->
+        end
+    end
+
+    % App initialization and construction
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure
+            app.UIFigure = uifigure;
+            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Name = 'UI Figure';
+            app.UIFigure.CloseRequestFcn = createCallbackFcn(app, @UIFigureCloseRequest, true);
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, '')
+            xlabel(app.UIAxes, '')
+            ylabel(app.UIAxes, '')
+            app.UIAxes.Position = [31 61 412 360];
+
+            % Create QuitButton
+            app.QuitButton = uibutton(app.UIFigure, 'push');
+            app.QuitButton.ButtonPushedFcn = createCallbackFcn(app, @QuitButtonPushed, true);
+            app.QuitButton.Position = [471 61 140 60];
+            app.QuitButton.Text = 'Quit';
+
+            % Create ToggleModeButton
+            app.ToggleModeButton = uibutton(app.UIFigure, 'push');
+            app.ToggleModeButton.ButtonPushedFcn = createCallbackFcn(app, @ToggleModeButtonPushed, true);
+            app.ToggleModeButton.Position = [471 161 140 60];
+            app.ToggleModeButton.Text = 'Toggle Mode';
+
+            % Create StopButton
+            app.StopButton = uibutton(app.UIFigure, 'push');
+            app.StopButton.ButtonPushedFcn = createCallbackFcn(app, @StopButtonPushed, true);
+            app.StopButton.Position = [471 261 140 60];
+            app.StopButton.Text = 'Stop';
+
+            % Create StartButton
+            app.StartButton = uibutton(app.UIFigure, 'push');
+            app.StartButton.ButtonPushedFcn = createCallbackFcn(app, @StartButtonPushed, true);
+            app.StartButton.Position = [471 361 140 60];
+            app.StartButton.Text = 'Start';
+
+            % Create ModeLabel
+            app.ModeLabel = uilabel(app.UIFigure);
+            app.ModeLabel.Position = [491 139 39 22];
+            app.ModeLabel.Text = 'Mode:';
+
+            % Create ModeText
+            app.ModeText = uilabel(app.UIFigure);
+            app.ModeText.Position = [541 139 50 22];
+            app.ModeText.Text = '';
+        end
+    end
+
+    methods (Access = public)
+
+        % Construct app
+        function app = lightGui
+
+            % Create and configure components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @startupFcn)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>
