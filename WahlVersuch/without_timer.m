@@ -7,75 +7,70 @@ my = b.motorB;
 mx.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
 my.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
 
-baseSpeed = 30;
-wheelDiameter = 4.32;
-clicksPerCm = 360 / (pi * wheelDiameter);
-
-r = 5;
-xPath = -r:0.2:r;
-yPath = sqrt(r^2 - xPath.^2);
-
-dxList = diff(xPath);
-dyList = diff(yPath);
-
 mx.resetTachoCount();
 my.resetTachoCount();
 
-for i = 1:length(dxList)
-    dx = dxList(i);
-    dy = dyList(i);
+wheelDia = 4.32;
+degPerCm = 360 / (pi * wheelDia);
+maxSpeed = 40;
+
+t = 0:0.1:2*pi;
+xPath = 10 + 5 * cos(t);
+yPath = 10 + 5 * sin(t);
+
+currentAbsX = 0;
+currentAbsY = 0;
+
+for i = 1:length(xPath)
+    targetAbsX = round(xPath(i) * degPerCm);
+    targetAbsY = round(yPath(i) * degPerCm);
     
-    ticksX = round(dx * clicksPerCm);
-    ticksY = round(dy * clicksPerCm);
+    deltaX = targetAbsX - currentAbsX;
+    deltaY = targetAbsY - currentAbsY;
     
-    if abs(ticksX) < 1 && abs(ticksY) < 1
+    if abs(deltaX) < 1 && abs(deltaY) < 1
         continue;
     end
     
-    distMax = max(abs(ticksX), abs(ticksY));
+    maxDist = max(abs(deltaX), abs(deltaY));
     
-    if distMax == 0
-        powerX = 0;
-        powerY = 0;
-    else
-        powerX = (abs(ticksX) / distMax) * baseSpeed;
-        powerY = (abs(ticksY) / distMax) * baseSpeed;
+    speedX = (abs(deltaX) / maxDist) * maxSpeed;
+    speedY = (abs(deltaY) / maxDist) * maxSpeed;
+    
+    if speedX < 5 && speedX > 0
+        speedX = 5;
+    end
+    if speedY < 5 && speedY > 0
+        speedY = 5;
     end
     
-    if powerX > 0 && powerX < 5
-        powerX = 5;
-    end
-    if powerY > 0 && powerY < 5
-        powerY = 5;
-    end
+    mx.power = round(speedX * sign(deltaX));
+    my.power = round(speedY * sign(deltaY));
+    
+    mx.limitValue = abs(deltaX);
+    my.limitValue = abs(deltaY);
     
     mx.resetTachoCount();
     my.resetTachoCount();
     
-    mx.limitValue = abs(ticksX);
-    my.limitValue = abs(ticksY);
-    
-    mx.power = round(powerX * sign(dx));
-    my.power = round(powerY * sign(dy));
-    
-    if abs(ticksX) > 0
+    if abs(deltaX) > 0
         mx.start();
     end
-    
-    if abs(ticksY) > 0
+    if abs(deltaY) > 0
         my.start();
     end
     
-    if abs(ticksX) > 0
+    if abs(deltaX) > 0
         mx.waitFor();
     end
-    
-    if abs(ticksY) > 0
+    if abs(deltaY) > 0
         my.waitFor();
     end
+    
+    currentAbsX = targetAbsX;
+    currentAbsY = targetAbsY;
 end
 
 mx.stop();
 my.stop();
-
 b.disconnect();
