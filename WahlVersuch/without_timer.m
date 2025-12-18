@@ -14,7 +14,7 @@ ratioY = 1;
 Durchmesser = 4.32;
 
 degPerCmX = (360 * ratioX) / (pi * Durchmesser);
-degPerCmY = (360 * ratioY) / (pi * Durchmesser);
+degPerCmY = -1 * (360 * ratioY) / (pi * Durchmesser); 
 
 maxSpeed = 40;
 penSpeed = 10;
@@ -76,6 +76,7 @@ startY = yPathDeg(1);
 
 mx.limitValue = abs(startX);
 my.limitValue = abs(startY);
+
 mx.power = 20 * sign(startX);
 my.power = 20 * sign(startY);
 
@@ -83,10 +84,10 @@ mx.resetTachoCount();
 my.resetTachoCount();
 
 if abs(startX) > 0
-mx.start(); 
+    mx.start(); 
 end
 if abs(startY) > 0
-my.start(); 
+    my.start(); 
 end
 mx.waitFor();
 my.waitFor();
@@ -117,17 +118,17 @@ for i = 1:numSteps
     my.resetTachoCount();
     
     if limX > 0
-    mx.start(); 
+        mx.start(); 
     end
     if limY > 0
-    my.start(); 
+        my.start(); 
     end
     
     if limX > 0
-    mx.waitFor(); 
+        mx.waitFor(); 
     end
     if limY > 0
-    my.waitFor(); 
+        my.waitFor(); 
     end
 end
 
