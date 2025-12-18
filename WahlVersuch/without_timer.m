@@ -11,7 +11,7 @@ mc.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Br
 
 ratioX = 4;
 ratioY = 1;
-Durchmesser = 4.32;
+Durchmesser = 13;
 
 degPerCmX = (360 * ratioX) / (pi * Durchmesser);
 degPerCmY = -1 * (360 * ratioY) / (pi * Durchmesser); 
