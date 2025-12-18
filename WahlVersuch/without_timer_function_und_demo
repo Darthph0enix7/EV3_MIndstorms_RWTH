@@ -1,0 +1,221 @@
+
+b = EV3();
+b.connect('usb');
+
+mx = b.motorA;
+my = b.motorB;
+mc = b.motorC;
+
+mx.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
+my.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
+mc.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
+
+% --- EINSTELLUNGEN ---
+S.ratioX = 4;
+S.ratioY = 1;
+S.Durchmesser = 4.32;
+S.maxSpeed = 40;
+S.penSpeed = 10;
+S.penUpAngle = 0;
+S.penDownAngle = 60; 
+
+% --- BEISPIEL 1: Der Kreis (Dein Original) ---
+t = 0:0.1:2*pi;
+x = 10 + 5 * cos(t);
+y = 10 + 5 * sin(t);
+plot(x, y);
+drawShape(mx, my, mc, x, y, S);
+
+% --- BEISPIEL 2: Ein Quadrat---
+% x = [5, 15, 15, 5, 5];
+% y = [5, 5, 15, 15, 5];
+%plot(x, y);
+% drawShape(mx, my, mc, x, y, S);
+
+% --- BEISPIEL 3: Eine Diagonale / ZickZack ---
+% x = [0, 5, 10, 15, 20];
+% y = [0, 5, 0, 5, 0];
+%plot(x, y);
+% drawShape(mx, my, mc, x, y, S);
+
+% --- BEISPIEL 4: Das "Haus vom Nikolaus" ---
+% x = [0, 0, 10, 5, 0, 10, 0, 10];
+% y = [0, 10, 10, 15, 10, 0, 0, 10];
+%plot(x, y);
+% drawShape(mx, my, mc, x, y, S);
+
+%t = 0:0.05:2*pi;
+% Verhältnis 3:4 Frequenzen
+%x = 10 + 8 * sin(3*t);
+%y = 10 + 8 * sin(4*t);
+%drawShape(mx, my, mc, x, y, S);
+
+%Archimedische Spirale
+% t = 0:0.1:6*pi; % 3 Umdrehungen
+% r = 0.8 * t;    % Radius wächst mit dem Winkel
+% x = 10 + r .* cos(t);
+% y = 10 + r .* sin(t);
+% drawShape(mx, my, mc, x, y, S);
+
+% t = 0:0.2:15;
+% % x wandert linear nach rechts, y schwingt aus
+% x = 2 + t; 
+% y = 10 + 8 * exp(-0.15*t) .* sin(2*t);
+% drawShape(mx, my, mc, x, y, S);
+
+mx.stop();
+my.stop();
+mc.stop();
+b.disconnect();
+
+
+
+
+function drawShape(mx, my, mc, xPathCm, yPathCm, S)
+    
+    degPerCmX = (360 * S.ratioX) / (pi * S.Durchmesser);
+    degPerCmY = (360 * S.ratioY) / (pi * S.Durchmesser);
+
+    xPathDeg = round(xPathCm * degPerCmX);
+    yPathDeg = round(yPathCm * degPerCmY);
+
+    dX = diff(xPathDeg);
+    dY = diff(yPathDeg);
+
+    numSteps = length(dX);
+    powerX_List = zeros(1, numSteps);
+    powerY_List = zeros(1, numSteps);
+    limitX_List = abs(dX);
+    limitY_List = abs(dY);
+
+    for k = 1:numSteps
+        changeX = dX(k);
+        changeY = dY(k);
+        
+        if abs(changeX) < 1 && abs(changeY) < 1
+            powerX_List(k) = 0;
+            powerY_List(k) = 0;
+            continue;
+        end
+        
+        maxDist = max(abs(changeX), abs(changeY));
+        
+        spdX = (abs(changeX) / maxDist) * S.maxSpeed;
+        spdY = (abs(changeY) / maxDist) * S.maxSpeed;
+        
+        if spdX < 5 && spdX > 0
+            spdX = 5;
+        end
+        if spdY < 5 && spdY > 0
+            spdY = 5;
+        end
+        
+        powerX_List(k) = round(spdX * sign(changeX));
+        powerY_List(k) = round(spdY * sign(changeY));
+    end
+
+    % 1. Stift Hoch (Sicherheit)
+    mc.power = -S.penSpeed;
+    mc.limitValue = abs(S.penUpAngle - S.penDownAngle); 
+    mc.resetTachoCount();
+    mc.start();
+    mc.waitFor();
+
+    % 2. Zum Startpunkt fahren
+    startX = xPathDeg(1);
+    startY = yPathDeg(1);
+
+    mx.limitValue = abs(startX);
+    my.limitValue = abs(startY);
+    mx.power = 20 * sign(startX);
+    my.power = 20 * sign(startY);
+
+    mx.resetTachoCount();
+    my.resetTachoCount();
+
+    if abs(startX) > 0
+        mx.start(); 
+    end
+    if abs(startY) > 0
+        my.start(); 
+    end
+    mx.waitFor();
+    my.waitFor();
+
+    % 3. Stift Runter
+    mc.power = S.penSpeed;
+    mc.limitValue = abs(S.penUpAngle - S.penDownAngle);
+    mc.resetTachoCount();
+    mc.start();
+    mc.waitFor();
+
+    % 4. Das Zeichnen (Dein Loop)
+    for i = 1:numSteps
+        limX = limitX_List(i);
+        limY = limitY_List(i);
+        powX = powerX_List(i);
+        powY = powerY_List(i);
+        
+        if limX == 0 && limY == 0
+            continue;
+        end
+        
+        mx.limitValue = limX;
+        my.limitValue = limY;
+        
+        mx.power = powX;
+        my.power = powY;
+        
+        mx.resetTachoCount();
+        my.resetTachoCount();
+        
+        if limX > 0
+            mx.start(); 
+        end
+        if limY > 0
+            my.start(); 
+        end
+        
+        if limX > 0
+            mx.waitFor(); 
+        end
+        if limY > 0
+            my.waitFor(); 
+        end
+    end
+
+    % 5. Stift Hoch
+    mc.power = -S.penSpeed;
+    mc.limitValue = abs(S.penUpAngle - S.penDownAngle);
+    mc.resetTachoCount();
+    mc.start();
+    mc.waitFor();
+
+    % 6. Zurück zum Ursprung (0,0) fahren
+    % Der Roboter ist jetzt an der letzten Koordinate. 
+    % Wir müssen genau diesen Wert negativ zurückfahren.
+    
+    endX = xPathDeg(end);
+    endY = yPathDeg(end);
+
+    mx.limitValue = abs(endX);
+    my.limitValue = abs(endY);
+    
+    % Wir invertieren das Vorzeichen (-endX), um zurückzufahren
+    mx.power = 30 * sign(-endX);
+    my.power = 30 * sign(-endY);
+    
+    mx.resetTachoCount();
+    my.resetTachoCount();
+    
+    if abs(endX) > 0
+        mx.start();
+    end
+    if abs(endY) > 0
+        my.start();
+    end
+    
+    mx.waitFor();
+    my.waitFor();
+    
+end

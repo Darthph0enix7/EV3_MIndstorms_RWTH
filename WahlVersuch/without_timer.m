@@ -19,7 +19,7 @@ degPerCmY = (360 * ratioY) / (pi * Durchmesser);
 maxSpeed = 40;
 penSpeed = 10;
 penAngle = 0; 
-penDownAngle = 60; 
+penDownAngle = 90; 
 
 t = 0:0.1:2*pi;
 xPathCm = 10 + 5 * cos(t);
