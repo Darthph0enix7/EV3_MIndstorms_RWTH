@@ -1,4 +1,5 @@
-
+% --- HAUPTPROGRAMM ---
+clear all;
 b = EV3();
 b.connect('usb');
 
@@ -6,83 +7,61 @@ mx = b.motorA;
 my = b.motorB;
 mc = b.motorC;
 
+% Grundeinstellungen der Motoren
 mx.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
 my.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
 mc.setProperties('speedRegulation', 'On', 'limitMode', 'Tacho', 'brakeMode', 'Brake');
 
-% --- EINSTELLUNGEN ---
-S.ratioX = 4;
-S.ratioY = 1;
-S.Durchmesser = 4.32;
-S.maxSpeed = 40;
-S.penSpeed = 10;
-S.penUpAngle = 0;
-S.penDownAngle = 60; 
+% WICHTIG: Wir definieren die aktuelle Position als den absoluten Nullpunkt (0,0)
+mx.resetTachoCount();
+my.resetTachoCount();
+mc.resetTachoCount();
 
-% --- BEISPIEL 1: Der Kreis (Dein Original) ---
+% --- KONFIGURATION ---
+S.ratioX = 4;        % Dein Getriebe an Achse X
+S.ratioY = 1;        % Dein Getriebe an Achse Y
+S.Durchmesser = 4.32;
+S.maxSpeed = 40;     % Ziehgeschwindigkeit
+S.penSpeed = 10;     % Stiftgeschwindigkeit
+S.penUpAngle = 0;    % Stift Oben
+S.penDownAngle = 60; % Stift Unten (Winkel anpassen wenn nötig)
+
+% --- DAS MOTIV: DER KREIS ---
 t = 0:0.1:2*pi;
 x = 10 + 5 * cos(t);
 y = 10 + 5 * sin(t);
-plot(x, y);
+
+% Zeige Vorschau am PC
+figure; plot(x, y); title('Roboter Pfad'); axis equal; grid on;
+
+% Starte den Zeichenvorgang
 drawShape(mx, my, mc, x, y, S);
 
-% --- BEISPIEL 2: Ein Quadrat---
-% x = [5, 15, 15, 5, 5];
-% y = [5, 5, 15, 15, 5];
-%plot(x, y);
-% drawShape(mx, my, mc, x, y, S);
-
-% --- BEISPIEL 3: Eine Diagonale / ZickZack ---
-% x = [0, 5, 10, 15, 20];
-% y = [0, 5, 0, 5, 0];
-%plot(x, y);
-% drawShape(mx, my, mc, x, y, S);
-
-% --- BEISPIEL 4: Das "Haus vom Nikolaus" ---
-% x = [0, 0, 10, 5, 0, 10, 0, 10];
-% y = [0, 10, 10, 15, 10, 0, 0, 10];
-%plot(x, y);
-% drawShape(mx, my, mc, x, y, S);
-
-%t = 0:0.05:2*pi;
-% Verhältnis 3:4 Frequenzen
-%x = 10 + 8 * sin(3*t);
-%y = 10 + 8 * sin(4*t);
-%drawShape(mx, my, mc, x, y, S);
-
-%Archimedische Spirale
-% t = 0:0.1:6*pi; % 3 Umdrehungen
-% r = 0.8 * t;    % Radius wächst mit dem Winkel
-% x = 10 + r .* cos(t);
-% y = 10 + r .* sin(t);
-% drawShape(mx, my, mc, x, y, S);
-
-% t = 0:0.2:15;
-% % x wandert linear nach rechts, y schwingt aus
-% x = 2 + t; 
-% y = 10 + 8 * exp(-0.15*t) .* sin(2*t);
-% drawShape(mx, my, mc, x, y, S);
-
+% Ende
 mx.stop();
 my.stop();
 mc.stop();
 b.disconnect();
 
 
-
-
+% --- DIE FUNKTION ---
 function drawShape(mx, my, mc, xPathCm, yPathCm, S)
     
+    % HIER IST DIE ÄNDERUNG: Faktor -1 bei Y für die Invertierung
     degPerCmX = (360 * S.ratioX) / (pi * S.Durchmesser);
-    degPerCmY = (360 * S.ratioY) / (pi * S.Durchmesser);
+    degPerCmY = -1 * (360 * S.ratioY) / (pi * S.Durchmesser);
 
+    % Pfad in Grad umrechnen (Absolutwerte)
     xPathDeg = round(xPathCm * degPerCmX);
     yPathDeg = round(yPathCm * degPerCmY);
 
+    % Deltas berechnen (Schritte)
     dX = diff(xPathDeg);
     dY = diff(yPathDeg);
 
     numSteps = length(dX);
+    
+    % --- VORBERECHNUNG DER GESCHWINDIGKEITEN ---
     powerX_List = zeros(1, numSteps);
     powerY_List = zeros(1, numSteps);
     limitX_List = abs(dX);
@@ -100,19 +79,19 @@ function drawShape(mx, my, mc, xPathCm, yPathCm, S)
         
         maxDist = max(abs(changeX), abs(changeY));
         
+        % Vektor-Normalisierung für gerade Linien
         spdX = (abs(changeX) / maxDist) * S.maxSpeed;
         spdY = (abs(changeY) / maxDist) * S.maxSpeed;
         
-        if spdX < 5 && spdX > 0
-            spdX = 5;
-        end
-        if spdY < 5 && spdY > 0
-            spdY = 5;
-        end
+        % Mindestkraft gegen Reibung
+        if spdX < 5 && spdX > 0; spdX = 5; end
+        if spdY < 5 && spdY > 0; spdY = 5; end
         
         powerX_List(k) = round(spdX * sign(changeX));
         powerY_List(k) = round(spdY * sign(changeY));
     end
+
+    % --- AUSFÜHRUNG ---
 
     % 1. Stift Hoch (Sicherheit)
     mc.power = -S.penSpeed;
@@ -121,24 +100,22 @@ function drawShape(mx, my, mc, xPathCm, yPathCm, S)
     mc.start();
     mc.waitFor();
 
-    % 2. Zum Startpunkt fahren
+    % 2. Zum ersten Punkt fahren (Von 0,0 aus)
     startX = xPathDeg(1);
     startY = yPathDeg(1);
 
     mx.limitValue = abs(startX);
     my.limitValue = abs(startY);
-    mx.power = 20 * sign(startX);
-    my.power = 20 * sign(startY);
+    
+    % Wir müssen hier manuell prüfen, ob startX positiv oder negativ ist für die Power
+    if startX ~= 0; mx.power = 20 * sign(startX); else; mx.power = 0; end
+    if startY ~= 0; my.power = 20 * sign(startY); else; my.power = 0; end
 
     mx.resetTachoCount();
     my.resetTachoCount();
 
-    if abs(startX) > 0
-        mx.start(); 
-    end
-    if abs(startY) > 0
-        my.start(); 
-    end
+    if abs(startX) > 0; mx.start(); end
+    if abs(startY) > 0; my.start(); end
     mx.waitFor();
     my.waitFor();
 
@@ -149,7 +126,7 @@ function drawShape(mx, my, mc, xPathCm, yPathCm, S)
     mc.start();
     mc.waitFor();
 
-    % 4. Das Zeichnen (Dein Loop)
+    % 4. Das Zeichnen (Loop)
     for i = 1:numSteps
         limX = limitX_List(i);
         limY = limitY_List(i);
@@ -162,26 +139,17 @@ function drawShape(mx, my, mc, xPathCm, yPathCm, S)
         
         mx.limitValue = limX;
         my.limitValue = limY;
-        
         mx.power = powX;
         my.power = powY;
         
         mx.resetTachoCount();
         my.resetTachoCount();
         
-        if limX > 0
-            mx.start(); 
-        end
-        if limY > 0
-            my.start(); 
-        end
+        if limX > 0; mx.start(); end
+        if limY > 0; my.start(); end
         
-        if limX > 0
-            mx.waitFor(); 
-        end
-        if limY > 0
-            my.waitFor(); 
-        end
+        if limX > 0; mx.waitFor(); end
+        if limY > 0; my.waitFor(); end
     end
 
     % 5. Stift Hoch
@@ -190,10 +158,12 @@ function drawShape(mx, my, mc, xPathCm, yPathCm, S)
     mc.resetTachoCount();
     mc.start();
     mc.waitFor();
+    
+    
 
     % 6. Zurück zum Ursprung (0,0) fahren
-    % Der Roboter ist jetzt an der letzten Koordinate. 
-    % Wir müssen genau diesen Wert negativ zurückfahren.
+    % Wir sind jetzt am letzten Punkt (endX, endY) relativ zu 0,0.
+    % Um zurückzukommen, fahren wir genau diese Strecke rückwärts.
     
     endX = xPathDeg(end);
     endY = yPathDeg(end);
@@ -201,19 +171,15 @@ function drawShape(mx, my, mc, xPathCm, yPathCm, S)
     mx.limitValue = abs(endX);
     my.limitValue = abs(endY);
     
-    % Wir invertieren das Vorzeichen (-endX), um zurückzufahren
-    mx.power = 30 * sign(-endX);
-    my.power = 30 * sign(-endY);
+    % Invertieren (-endX) um zurückzufahren
+    if endX ~= 0; mx.power = 30 * sign(-endX); else; mx.power = 0; end
+    if endY ~= 0; my.power = 30 * sign(-endY); else; my.power = 0; end
     
     mx.resetTachoCount();
     my.resetTachoCount();
     
-    if abs(endX) > 0
-        mx.start();
-    end
-    if abs(endY) > 0
-        my.start();
-    end
+    if abs(endX) > 0; mx.start(); end
+    if abs(endY) > 0; my.start(); end
     
     mx.waitFor();
     my.waitFor();
